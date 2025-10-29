@@ -1,0 +1,11 @@
+GLOBAL := 10px;
+
+section {
+    LOCAL := 20px;
+    width: LOCAL;
+}
+
+article {
+    width: LOCAL;
+    height: GLOBAL;
+}

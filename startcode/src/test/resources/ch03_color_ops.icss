@@ -1,0 +1,7 @@
+COLOR1 := #ff0000;
+SIZE1 := 10px;
+
+span {
+    width: COLOR1 + SIZE1;
+    height: SIZE1 * 2;
+}

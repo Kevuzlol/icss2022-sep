@@ -1,0 +1,11 @@
+COND_TRUE := TRUE;
+COND_FALSE := 0px;
+
+p {
+    if [COND_TRUE] {
+        width: 100px;
+    }
+    if [COND_FALSE] {
+        width: 200px;
+    }
+}

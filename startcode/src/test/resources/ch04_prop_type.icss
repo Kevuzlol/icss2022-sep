@@ -1,0 +1,8 @@
+WIDTH_VAL := 500px;
+COLOR_VAL := #00ff00;
+
+div {
+    width: COLOR_VAL;
+    color: WIDTH_VAL;
+    height: WIDTH_VAL;
+}

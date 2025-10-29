@@ -1,0 +1,6 @@
+COLOR1 := #ff0000;
+
+button {
+    color: COLOR1;
+    width: UNDEF_VAR;
+}

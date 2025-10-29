@@ -1,0 +1,8 @@
+PX_VAL := 10px;
+PERC_VAL := 20%;
+
+div {
+    width: PX_VAL + PERC_VAL;
+    height: PX_VAL * PX_VAL;
+    depth: PX_VAL * 2;
+}
