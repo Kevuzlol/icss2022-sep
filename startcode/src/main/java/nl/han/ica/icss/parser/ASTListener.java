@@ -52,10 +52,7 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void exitStylerule(ICSSParser.StyleruleContext ctx) {
         Stylerule stylerule = (Stylerule) stack.pop();
-        ASTNode parent = stack.peek();
-        if (parent != null) {
-            parent.addChild(stylerule);
-        }
+        stack.peek().addChild(stylerule);
     }
 
     // --- Selector ---
@@ -71,12 +68,7 @@ public class ASTListener extends ICSSBaseListener {
             selector = new TagSelector(ctx.LOWER_IDENT().getText());
         }
 
-        if (selector != null) {
-            ASTNode parent = stack.peek();
-            if (parent instanceof Stylerule) {
-                parent.addChild(selector);
-            }
-        }
+        stack.peek().addChild(selector);
     }
 
     // --- Variable Assignment ---
@@ -89,32 +81,22 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
-        VariableAssignment assignment = (VariableAssignment) stack.pop();
-        ASTNode parent = stack.peek();
-        if (parent != null) {
-            parent.addChild(assignment);
-        }
+        VariableAssignment variableAssignment = (VariableAssignment) stack.pop();
+        stack.peek().addChild(variableAssignment);
     }
 
     // --- Declaration ---
     @Override
     public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
-        if (ctx.ifClause() == null) {
-            Declaration declaration = new Declaration();
-            declaration.property = new PropertyName(ctx.LOWER_IDENT().getText());
-            stack.push(declaration);
-        }
+        Declaration declaration = new Declaration();
+        declaration.property = new PropertyName(ctx.LOWER_IDENT().getText());
+        stack.push(declaration);
     }
 
     @Override
     public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
-        if (ctx.ifClause() == null) {
-            Declaration declaration = (Declaration) stack.pop();
-            ASTNode parent = stack.peek();
-            if (parent != null) {
-                parent.addChild(declaration);
-            }
-        }
+        Declaration declaration = (Declaration) stack.pop();
+        stack.peek().addChild(declaration);
     }
 
     // --- IfClause ---
@@ -125,8 +107,8 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitIfClause(ICSSParser.IfClauseContext ctx) {
-        IfClause ifClause = (IfClause) stack.pop();
-        stack.peek().addChild(ifClause);
+        IfClause ifNode = (IfClause) stack.pop();
+        stack.peek().addChild(ifNode);
     }
 
     // --- ElseClause ---
@@ -137,10 +119,9 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitElseClause(ICSSParser.ElseClauseContext ctx) {
-        ElseClause elseClause = (ElseClause) stack.pop();
-        stack.peek().addChild(elseClause);
+        ElseClause elseNode = (ElseClause) stack.pop();
+        stack.peek().addChild(elseNode);
     }
-
 
     // --- Expression ---
     @Override
@@ -148,25 +129,25 @@ public class ASTListener extends ICSSBaseListener {
         if (ctx.getChildCount() != 3) {
             return;
         }
+        Expression expression = null;
 
         String operation = ctx.getChild(1).getText();
         if (operation.equals("+")) {
-            stack.push(new AddOperation());
+            expression = new AddOperation();
         } else if (operation.equals("-")) {
-            stack.push(new SubtractOperation());
+            expression = new SubtractOperation();
         } else if (operation.equals("*")) {
-            stack.push(new MultiplyOperation());
+            expression = new MultiplyOperation();
         }
+
+        stack.push(expression);
     }
 
     @Override
     public void exitExpression(ICSSParser.ExpressionContext ctx) {
         if (ctx.getChildCount() == 3) {
             Operation operation = (Operation) stack.pop();
-            ASTNode parent = stack.peek();
-            if (parent != null) {
-                parent.addChild(operation);
-            }
+            stack.peek().addChild(operation);
         }
     }
 
@@ -191,11 +172,6 @@ public class ASTListener extends ICSSBaseListener {
             node = new VariableReference(ctx.CAPITAL_IDENT().getText());
         }
 
-        if (node != null) {
-            ASTNode parent = stack.peek();
-            if (parent != null) {
-                parent.addChild(node);
-            }
-        }
+        stack.peek().addChild(node);
     }
 }
