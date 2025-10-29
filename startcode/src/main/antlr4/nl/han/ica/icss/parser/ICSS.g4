@@ -41,16 +41,17 @@ MIN: '-';
 MUL: '*';
 ASSIGNMENT_OPERATOR: ':=';
 
-
-
-
 //--- PARSER: ---
 stylesheet
-    : stylerule* EOF
+    : (variableAssignment | stylerule)* EOF
     ;
 
 stylerule
     : selector OPEN_BRACE declaration* CLOSE_BRACE
+    ;
+
+variableAssignment
+    : CAPITAL_IDENT ASSIGNMENT_OPERATOR expression SEMICOLON
     ;
 
 selector
@@ -60,11 +61,21 @@ selector
     ;
 
 declaration
-    : LOWER_IDENT COLON value SEMICOLON
+    : LOWER_IDENT COLON expression SEMICOLON
+    ;
+
+expression
+    : expression MUL expression
+    | expression (PLUS | MIN) expression
+    | value
     ;
 
 value
     : COLOR
     | PIXELSIZE
     | PERCENTAGE
+    | TRUE
+    | FALSE
+    | SCALAR
+    | CAPITAL_IDENT
     ;

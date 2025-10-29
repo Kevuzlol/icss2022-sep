@@ -33,41 +33,144 @@ public class ASTListener extends ICSSBaseListener {
         return ast;
     }
 
+    @Override
+    public void enterStylesheet(ICSSParser.StylesheetContext ctx) {
+        stack.push(new Stylesheet());
+    }
+
+    public void exitStylesheet(ICSSParser.StylesheetContext ctx) {
+        ast.setRoot((Stylesheet) stack.pop());
+    }
+
     // --- Style rules ---
     @Override
     public void enterStylerule(ICSSParser.StyleruleContext ctx) {
-        Stylerule rule = new Stylerule();
-
-        if (ctx.selector().ID_IDENT() != null) {
-            rule.addChild(new IdSelector(ctx.selector().ID_IDENT().getText()));
-        } else if (ctx.selector().CLASS_IDENT() != null) {
-            rule.addChild(new ClassSelector(ctx.selector().CLASS_IDENT().getText()));
-        } else {
-            rule.addChild(new TagSelector(ctx.selector().LOWER_IDENT().getText()));
-        }
-
-        stack.push(rule);
+        stack.push(new Stylerule());
     }
 
     @Override
     public void exitStylerule(ICSSParser.StyleruleContext ctx) {
-        stack.pop();
+        Stylerule stylerule = (Stylerule) stack.pop();
+        ASTNode parent = stack.peek();
+        if (parent != null) {
+            parent.addChild(stylerule);
+        }
     }
 
-    // --- Declarations ---
+    // --- Selector ---
     @Override
-    public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
-        Declaration decl = new Declaration(ctx.LOWER_IDENT().getText());
+    public void enterSelector(ICSSParser.SelectorContext ctx) {
+        Selector selector = null;
 
-        // Waarden voor level0: color, px, percentage
-        if (ctx.value().COLOR() != null) {
-            decl.addChild(new ColorLiteral(ctx.value().COLOR().getText()));
-        } else if (ctx.value().PIXELSIZE() != null) {
-            decl.addChild(new PixelLiteral(ctx.value().PIXELSIZE().getText()));
-        } else if (ctx.value().PERCENTAGE() != null) {
-            decl.addChild(new PercentageLiteral(ctx.value().PERCENTAGE().getText()));
+        if (ctx.ID_IDENT() != null) {
+            selector = new IdSelector(ctx.ID_IDENT().getText());
+        } else if (ctx.CLASS_IDENT() != null) {
+            selector = new ClassSelector(ctx.CLASS_IDENT().getText());
+        } else if (ctx.LOWER_IDENT() != null) {
+            selector = new TagSelector(ctx.LOWER_IDENT().getText());
         }
 
-        stack.peek().addChild(decl);
+        if (selector != null) {
+            ASTNode parent = stack.peek();
+            if (parent instanceof Stylerule) {
+                parent.addChild(selector);
+            }
+        }
+    }
+
+    // --- Variable Assignment ---
+    @Override
+    public void enterVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
+        VariableAssignment assignment = new VariableAssignment();
+        // Voeg de variabele naam toe
+        assignment.name = new VariableReference(ctx.CAPITAL_IDENT().getText());
+        stack.push(assignment);
+    }
+
+    @Override
+    public void exitVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
+        VariableAssignment assignment = (VariableAssignment) stack.pop();
+        ASTNode parent = stack.peek();
+        if (parent != null) {
+            parent.addChild(assignment);
+        }
+    }
+
+    // --- Declaration ---
+    @Override
+    public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
+        Declaration declaration = new Declaration();
+        // Voeg de property naam toe
+        declaration.property = new PropertyName(ctx.LOWER_IDENT().getText());
+        stack.push(declaration);
+    }
+
+    @Override
+    public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
+        Declaration declaration = (Declaration) stack.pop();
+        ASTNode parent = stack.peek();
+        if (parent != null) {
+            parent.addChild(declaration);
+        }
+    }
+
+    // --- Expression ---
+    @Override
+    public void enterExpression(ICSSParser.ExpressionContext ctx) {
+        if (ctx.getChildCount() != 3) {
+            return;
+        }
+
+        String operation = ctx.getChild(1).getText();
+        if (operation.equals("+")) {
+            stack.push(new AddOperation());
+        } else if (operation.equals("-")) {
+            stack.push(new SubtractOperation());
+        } else if (operation.equals("*")) {
+            stack.push(new MultiplyOperation());
+        }
+    }
+
+    @Override
+    public void exitExpression(ICSSParser.ExpressionContext ctx) {
+        if (ctx.getChildCount() == 3) {
+            // Dit is een operatie - pop de operatie en voeg toe aan parent
+            Operation operation = (Operation) stack.pop();
+            ASTNode parent = stack.peek();
+            if (parent != null) {
+                parent.addChild(operation);
+            }
+        }
+        // Voor single values hoeven we niets te doen - die zijn al toegevoegd via enterValue
+    }
+
+    // --- Value ---
+    @Override
+    public void enterValue(ICSSParser.ValueContext ctx) {
+        ASTNode node = null;
+
+        if (ctx.COLOR() != null) {
+            node = new ColorLiteral(ctx.COLOR().getText());
+        } else if (ctx.PIXELSIZE() != null) {
+            node = new PixelLiteral(ctx.PIXELSIZE().getText());
+        } else if (ctx.PERCENTAGE() != null) {
+            node = new PercentageLiteral(ctx.PERCENTAGE().getText());
+        } else if (ctx.TRUE() != null) {
+            node = new BoolLiteral(true);
+        } else if (ctx.FALSE() != null) {
+            node = new BoolLiteral(false);
+        } else if (ctx.SCALAR() != null) {
+            node = new ScalarLiteral(ctx.SCALAR().getText());
+        } else if (ctx.CAPITAL_IDENT() != null) {
+            // Variabele referentie
+            node = new VariableReference(ctx.CAPITAL_IDENT().getText());
+        }
+
+        if (node != null) {
+            ASTNode parent = stack.peek();
+            if (parent != null) {
+                parent.addChild(node);
+            }
+        }
     }
 }
