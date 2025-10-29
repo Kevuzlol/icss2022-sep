@@ -38,6 +38,7 @@ public class ASTListener extends ICSSBaseListener {
         stack.push(new Stylesheet());
     }
 
+    @Override
     public void exitStylesheet(ICSSParser.StylesheetContext ctx) {
         ast.setRoot((Stylesheet) stack.pop());
     }
@@ -82,7 +83,6 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void enterVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
         VariableAssignment assignment = new VariableAssignment();
-        // Voeg de variabele naam toe
         assignment.name = new VariableReference(ctx.CAPITAL_IDENT().getText());
         stack.push(assignment);
     }
@@ -99,20 +99,48 @@ public class ASTListener extends ICSSBaseListener {
     // --- Declaration ---
     @Override
     public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
-        Declaration declaration = new Declaration();
-        // Voeg de property naam toe
-        declaration.property = new PropertyName(ctx.LOWER_IDENT().getText());
-        stack.push(declaration);
+        if (ctx.ifClause() == null) {
+            Declaration declaration = new Declaration();
+            declaration.property = new PropertyName(ctx.LOWER_IDENT().getText());
+            stack.push(declaration);
+        }
     }
 
     @Override
     public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
-        Declaration declaration = (Declaration) stack.pop();
-        ASTNode parent = stack.peek();
-        if (parent != null) {
-            parent.addChild(declaration);
+        if (ctx.ifClause() == null) {
+            Declaration declaration = (Declaration) stack.pop();
+            ASTNode parent = stack.peek();
+            if (parent != null) {
+                parent.addChild(declaration);
+            }
         }
     }
+
+    // --- IfClause ---
+    @Override
+    public void enterIfClause(ICSSParser.IfClauseContext ctx) {
+        stack.push(new IfClause());
+    }
+
+    @Override
+    public void exitIfClause(ICSSParser.IfClauseContext ctx) {
+        IfClause ifClause = (IfClause) stack.pop();
+        stack.peek().addChild(ifClause);
+    }
+
+    // --- ElseClause ---
+    @Override
+    public void enterElseClause(ICSSParser.ElseClauseContext ctx) {
+        stack.push(new ElseClause());
+    }
+
+    @Override
+    public void exitElseClause(ICSSParser.ElseClauseContext ctx) {
+        ElseClause elseClause = (ElseClause) stack.pop();
+        stack.peek().addChild(elseClause);
+    }
+
 
     // --- Expression ---
     @Override
@@ -134,14 +162,12 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void exitExpression(ICSSParser.ExpressionContext ctx) {
         if (ctx.getChildCount() == 3) {
-            // Dit is een operatie - pop de operatie en voeg toe aan parent
             Operation operation = (Operation) stack.pop();
             ASTNode parent = stack.peek();
             if (parent != null) {
                 parent.addChild(operation);
             }
         }
-        // Voor single values hoeven we niets te doen - die zijn al toegevoegd via enterValue
     }
 
     // --- Value ---
@@ -162,7 +188,6 @@ public class ASTListener extends ICSSBaseListener {
         } else if (ctx.SCALAR() != null) {
             node = new ScalarLiteral(ctx.SCALAR().getText());
         } else if (ctx.CAPITAL_IDENT() != null) {
-            // Variabele referentie
             node = new VariableReference(ctx.CAPITAL_IDENT().getText());
         }
 

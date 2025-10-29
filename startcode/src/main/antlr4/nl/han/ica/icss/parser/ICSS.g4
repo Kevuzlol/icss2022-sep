@@ -50,18 +50,27 @@ stylerule
     : selector OPEN_BRACE declaration* CLOSE_BRACE
     ;
 
-variableAssignment
-    : CAPITAL_IDENT ASSIGNMENT_OPERATOR expression SEMICOLON
-    ;
-
 selector
     : ID_IDENT
     | CLASS_IDENT
     | LOWER_IDENT
     ;
 
+variableAssignment
+    : CAPITAL_IDENT ASSIGNMENT_OPERATOR expression SEMICOLON
+    ;
+
 declaration
     : LOWER_IDENT COLON expression SEMICOLON
+    | ifClause
+    ;
+
+ifClause
+    : IF BOX_BRACKET_OPEN expression BOX_BRACKET_CLOSE OPEN_BRACE declaration* CLOSE_BRACE elseClause?
+    ;
+
+elseClause
+    : ELSE OPEN_BRACE declaration* CLOSE_BRACE
     ;
 
 expression
