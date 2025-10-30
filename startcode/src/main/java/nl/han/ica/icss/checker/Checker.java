@@ -24,6 +24,12 @@ public class Checker {
 
     private void checkNode(ASTNode node) {
 
+        // --- nieuwe scope openen bij Stylerule, IfClause of ElseClause ---
+        boolean opensScope = node instanceof Stylerule || node instanceof IfClause || node instanceof ElseClause;
+        if (opensScope) {
+            variableTypes.addFirst(new HashMap<>());
+        }
+
         // Variabele declaratie -> type opslaan in huidige scope
         if (node instanceof VariableAssignment) {
             VariableAssignment assignment = (VariableAssignment) node;
@@ -31,18 +37,12 @@ public class Checker {
             variableTypes.getFirst().put(assignment.name.name, type);
         }
 
-        // Variabele referentie -> controleren of die bestaat
+        // --- Variabele referentie ---
         if (node instanceof VariableReference) {
             VariableReference reference = (VariableReference) node;
-            if (!isDefined(reference.name)) {
-                reference.setError("Variable '" + reference.name + "' is not defined.");
+            if (!isDefinedInCurrentScopes(reference.name)) {
+                reference.setError("Variable '" + reference.name + "' is not defined in current scope.");
             }
-        }
-
-        // --- Nieuwe scope openen ---
-        boolean opensScope = node instanceof Stylerule || node instanceof IfClause || node instanceof ElseClause;
-        if (opensScope) {
-            variableTypes.addFirst(new HashMap<>());
         }
 
         if (node instanceof IfClause) {
@@ -61,7 +61,7 @@ public class Checker {
         // --- check operaties ---
         if (node instanceof Operation) {
             Operation op = (Operation) node;
-            
+
             if (op.getChildren().size() >= 2) {
                 Expression left = (Expression) op.getChildren().get(0);
                 Expression right = (Expression) op.getChildren().get(1);
@@ -129,12 +129,11 @@ public class Checker {
         }
     }
 
-    private boolean isDefined(String name) {
+    // controleer variabele binnen zichtbare scopes
+    private boolean isDefinedInCurrentScopes(String name) {
         for (int i = 0; i < variableTypes.getSize(); i++) {
             HashMap<String, ExpressionType> scope = variableTypes.get(i);
-            if (scope.containsKey(name)) {
-                return true;
-            }
+            if (scope.containsKey(name)) return true;
         }
         return false;
     }
