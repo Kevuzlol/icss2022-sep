@@ -1,0 +1,14 @@
+Transform:
+
+AdjustWidth := TRUE;
+WidthVar := 0px;
+
+p {
+    if [AdjustWidth] {
+        WidthVar := 200px;
+    } else {
+        WidthVar := 250px;
+    }
+
+    width: WidthVar;
+}

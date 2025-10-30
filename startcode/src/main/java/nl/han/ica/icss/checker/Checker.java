@@ -89,7 +89,6 @@ public class Checker {
             }
         }
 
-
         // --- type controle op declaraties ---
         if (node instanceof Declaration) {
             Declaration decl = (Declaration) node;
