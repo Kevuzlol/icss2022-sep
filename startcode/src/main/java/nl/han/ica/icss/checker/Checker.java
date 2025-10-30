@@ -3,10 +3,7 @@ package nl.han.ica.icss.checker;
 import nl.han.ica.datastructures.HANLinkedList;
 import nl.han.ica.datastructures.IHANLinkedList;
 import nl.han.ica.icss.ast.*;
-import nl.han.ica.icss.ast.literals.ColorLiteral;
-import nl.han.ica.icss.ast.literals.PercentageLiteral;
-import nl.han.ica.icss.ast.literals.PixelLiteral;
-import nl.han.ica.icss.ast.literals.ScalarLiteral;
+import nl.han.ica.icss.ast.literals.*;
 import nl.han.ica.icss.ast.operations.AddOperation;
 import nl.han.ica.icss.ast.operations.MultiplyOperation;
 import nl.han.ica.icss.ast.operations.SubtractOperation;
@@ -42,16 +39,29 @@ public class Checker {
             }
         }
 
-        // Nieuwe scope openen bij Stylerule of IfClause
-        if (node instanceof Stylerule || node instanceof IfClause) {
+        // --- Nieuwe scope openen ---
+        boolean opensScope = node instanceof Stylerule || node instanceof IfClause || node instanceof ElseClause;
+        if (opensScope) {
             variableTypes.addFirst(new HashMap<>());
+        }
+
+        if (node instanceof IfClause) {
+            IfClause ifNode = (IfClause) node;
+            if (!ifNode.getChildren().isEmpty()) {
+                ASTNode condNode = ifNode.getChildren().get(0);
+                if (condNode instanceof Expression) {
+                    ExpressionType condType = inferType((Expression) condNode);
+                    if (condType != ExpressionType.BOOL) {
+                        ifNode.setError("If-clause condition must be a boolean.");
+                    }
+                }
+            }
         }
 
         // --- check operaties ---
         if (node instanceof Operation) {
             Operation op = (Operation) node;
-
-            // we verwachten 2 children: left en right
+            
             if (op.getChildren().size() >= 2) {
                 Expression left = (Expression) op.getChildren().get(0);
                 Expression right = (Expression) op.getChildren().get(1);
@@ -80,7 +90,35 @@ public class Checker {
             }
         }
 
-        // Recursief door alle children
+
+        // --- type controle op declaraties ---
+        if (node instanceof Declaration) {
+            Declaration decl = (Declaration) node;
+            String property = decl.property.name;
+            ExpressionType valueType = inferType(decl.expression);
+
+            switch (property) {
+                case "color":
+                case "background-color":
+                    if (valueType != ExpressionType.COLOR) {
+                        decl.setError("Property '" + property + "' requires a COLOR.");
+                    }
+                    break;
+
+                case "width":
+                case "height":
+                case "margin":
+                case "padding":
+                case "top":
+                case "left":
+                    if (valueType != ExpressionType.PIXEL && valueType != ExpressionType.PERCENTAGE) {
+                        decl.setError("Property '" + property + "' must be PIXEL or PERCENTAGE.");
+                    }
+                    break;
+            }
+        }
+
+            // Recursief door alle children
         for (ASTNode child : node.getChildren()) {
             checkNode(child);
         }
@@ -108,6 +146,7 @@ public class Checker {
         if (expr instanceof PixelLiteral) return ExpressionType.PIXEL;
         if (expr instanceof PercentageLiteral) return ExpressionType.PERCENTAGE;
         if (expr instanceof ScalarLiteral) return ExpressionType.SCALAR;
+        if (expr instanceof BoolLiteral) return ExpressionType.BOOL;
 
         if (expr instanceof VariableReference) {
             VariableReference reference = (VariableReference) expr;
