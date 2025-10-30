@@ -18,7 +18,6 @@ public class Checker {
     public void check(AST ast) {
         variableTypes = new HANLinkedList<>();
         variableTypes.addFirst(new HashMap<>());
-
         checkNode(ast.root);
     }
 
@@ -45,6 +44,7 @@ public class Checker {
             }
         }
 
+        // If-clause conditie check
         if (node instanceof IfClause) {
             IfClause ifNode = (IfClause) node;
             if (!ifNode.getChildren().isEmpty()) {
@@ -61,7 +61,6 @@ public class Checker {
         // --- check operaties ---
         if (node instanceof Operation) {
             Operation op = (Operation) node;
-
             if (op.getChildren().size() >= 2) {
                 Expression left = (Expression) op.getChildren().get(0);
                 Expression right = (Expression) op.getChildren().get(1);
@@ -104,7 +103,6 @@ public class Checker {
                         decl.setError("Property '" + property + "' requires a COLOR.");
                     }
                     break;
-
                 case "width":
                 case "height":
                 case "margin":
@@ -118,13 +116,13 @@ public class Checker {
             }
         }
 
-            // Recursief door alle children
+        // Recursief door alle children
         for (ASTNode child : node.getChildren()) {
             checkNode(child);
         }
 
         // Scope sluiten
-        if (node instanceof Stylerule || node instanceof IfClause) {
+        if (opensScope) {
             variableTypes.removeFirst();
         }
     }
@@ -140,7 +138,6 @@ public class Checker {
 
     // Type bepaling voor variabele toewijzingen
     private ExpressionType inferType(Expression expr) {
-
         if (expr instanceof ColorLiteral) return ExpressionType.COLOR;
         if (expr instanceof PixelLiteral) return ExpressionType.PIXEL;
         if (expr instanceof PercentageLiteral) return ExpressionType.PERCENTAGE;
