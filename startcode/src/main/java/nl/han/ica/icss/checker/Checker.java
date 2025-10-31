@@ -17,26 +17,26 @@ public class Checker {
 
     public void check(AST ast) {
         variableTypes = new HANLinkedList<>();
-        variableTypes.addFirst(new HashMap<>());
+        variableTypes.addFirst(new HashMap<>()); // start with global scope
         checkNode(ast.root);
     }
 
     private void checkNode(ASTNode node) {
 
-        // --- nieuwe scope openen bij Stylerule, IfClause of ElseClause ---
+        // --- open a new scope for Stylerule, IfClause or ElseClause ---
         boolean opensScope = node instanceof Stylerule || node instanceof IfClause || node instanceof ElseClause;
         if (opensScope) {
             variableTypes.addFirst(new HashMap<>());
         }
 
-        // Variabele declaratie -> type opslaan in huidige scope
+        // Variable assignment -> store its type in current scope
         if (node instanceof VariableAssignment) {
             VariableAssignment assignment = (VariableAssignment) node;
             ExpressionType type = inferType(assignment.expression);
             variableTypes.getFirst().put(assignment.name.name, type);
         }
 
-        // --- Variabele referentie ---
+        // --- Variable reference check ---
         if (node instanceof VariableReference) {
             VariableReference reference = (VariableReference) node;
             if (!isDefinedInCurrentScopes(reference.name)) {
@@ -44,55 +44,39 @@ public class Checker {
             }
         }
 
-        // If-clause conditie check
+        // If-clause: condition must be boolean
         if (node instanceof IfClause) {
             IfClause ifNode = (IfClause) node;
-            if (!ifNode.getChildren().isEmpty()) {
-                ASTNode condNode = ifNode.getChildren().get(0);
-                if (condNode instanceof Expression) {
-                    ExpressionType condType = inferType((Expression) condNode);
-                    if (condType != ExpressionType.BOOL) {
-                        ifNode.setError("If-clause condition must be a boolean.");
-                    }
-                }
-            }
+            ExpressionType condType = inferType(ifNode.conditionalExpression);
+            if (condType != ExpressionType.BOOL) ifNode.setError("If-clause condition must be boolean.");
         }
 
-        // --- check operaties ---
+        // --- check operations ---
         if (node instanceof Operation) {
             Operation op = (Operation) node;
-            if (op.getChildren().size() >= 2) {
-                Expression left = (Expression) op.getChildren().get(0);
-                Expression right = (Expression) op.getChildren().get(1);
+            ExpressionType leftType = inferType(op.lhs);
+            ExpressionType rightType = inferType(op.rhs);
 
-                ExpressionType leftType = inferType(left);
-                ExpressionType rightType = inferType(right);
+            // + and - must have same type on both sides
+            if ((op instanceof AddOperation || op instanceof SubtractOperation) && leftType != rightType) {
+                op.setError("Operands of + or - must be the same type");
+            }
 
-                if (op instanceof AddOperation || op instanceof SubtractOperation) {
-                    if (leftType != rightType) {
-                        // types niet gelijk -> zet type op UNDEFINED
-                        op.setError("Operands of + or - must be the same type");
-                    }
-                }
+            // * requires at least one SCALAR
+            if (op instanceof MultiplyOperation && leftType != ExpressionType.SCALAR && rightType != ExpressionType.SCALAR) {
+                op.setError("At least one operand of * must be a scalar");
+            }
 
-                if (op instanceof MultiplyOperation) {
-                    if (leftType != ExpressionType.SCALAR && rightType != ExpressionType.SCALAR) {
-                        // minstens een scalar
-                        op.setError("At least one operand of * must be a scalar");
-                    }
-                }
-
-                // geen kleuren in operaties
-                if (leftType == ExpressionType.COLOR || rightType == ExpressionType.COLOR) {
-                    op.setError("Colors cannot be used in operations");
-                }
+            // Colors cannot be in operations
+            if (leftType == ExpressionType.COLOR || rightType == ExpressionType.COLOR) {
+                op.setError("Colors cannot be used in operations");
             }
         }
 
-        // --- type controle op declaraties ---
+        // --- type checks for declarations ---
         if (node instanceof Declaration) {
             Declaration decl = (Declaration) node;
-            String property = decl.property.name;
+            String property = decl.property.name.toLowerCase();
             ExpressionType valueType = inferType(decl.expression);
 
             switch (property) {
@@ -115,27 +99,26 @@ public class Checker {
             }
         }
 
-        // Recursief door alle children
+        // Go through all children recursively
         for (ASTNode child : node.getChildren()) {
             checkNode(child);
         }
 
-        // Scope sluiten
+        // Close the scope if we opened one
         if (opensScope) {
             variableTypes.removeFirst();
         }
     }
 
-    // controleer variabele binnen zichtbare scopes
+    // check if a variable is defined in any visible scope
     private boolean isDefinedInCurrentScopes(String name) {
         for (int i = 0; i < variableTypes.getSize(); i++) {
-            HashMap<String, ExpressionType> scope = variableTypes.get(i);
-            if (scope.containsKey(name)) return true;
+            if (variableTypes.get(i).containsKey(name)) return true;
         }
         return false;
     }
 
-    // Type bepaling voor variabele toewijzingen
+    // infer type of an expression
     private ExpressionType inferType(Expression expr) {
         if (expr instanceof ColorLiteral) return ExpressionType.COLOR;
         if (expr instanceof PixelLiteral) return ExpressionType.PIXEL;
@@ -144,14 +127,30 @@ public class Checker {
         if (expr instanceof BoolLiteral) return ExpressionType.BOOL;
 
         if (expr instanceof VariableReference) {
-            VariableReference reference = (VariableReference) expr;
+            String name = ((VariableReference) expr).name;
             for (int i = 0; i < variableTypes.getSize(); i++) {
-                HashMap<String, ExpressionType> scope = variableTypes.get(i);
-                if (scope.containsKey(reference.name)) {
-                    return scope.get(reference.name);
-                }
+                if (variableTypes.get(i).containsKey(name)) return variableTypes.get(i).get(name);
             }
         }
-        return ExpressionType.UNDEFINED;
+
+        // --- handle operations ---
+        if (expr instanceof Operation) {
+            Operation op = (Operation) expr;
+            ExpressionType leftType = inferType(op.lhs);
+            ExpressionType rightType = inferType(op.rhs);
+
+            if (op instanceof MultiplyOperation) {
+                // multiplication: if one side is SCALAR, return the other type
+                if (leftType == ExpressionType.SCALAR) return rightType;
+                if (rightType == ExpressionType.SCALAR) return leftType;
+            }
+
+            // + or -: both sides must be same type, return that type
+            if (op instanceof AddOperation || op instanceof SubtractOperation) {
+                if (leftType == rightType) return leftType;
+            }
+        }
+
+        return ExpressionType.UNDEFINED; // couldn't figure it out
     }
 }

@@ -9,7 +9,7 @@ public class Generator {
         StringBuilder builder = new StringBuilder();
         Stylesheet stylesheet = ast.root;
 
-        // Elke stylerule omzetten naar CSS
+        // Loop over all stylerules and turn them into CSS
         for (ASTNode node : stylesheet.getChildren()) {
             if (node instanceof Stylerule) {
                 generateStylerule((Stylerule) node, builder);
@@ -18,9 +18,9 @@ public class Generator {
         return builder.toString();
     }
 
-    // Genereer een CSS blok
+    // Make a CSS block for a rule
     private void generateStylerule(Stylerule rule, StringBuilder builder) {
-        // Selector zoals: p, #id, .class
+        // Selector like: p, #id, .class
         builder.append(rule.selectors.get(0).toString());
         builder.append(" {\n");
 
@@ -30,18 +30,19 @@ public class Generator {
             }
         }
 
-        builder.append("}\n\n");
+        builder.append("}\n\n"); // close the block
     }
 
-    // Genereert CSS declaratie
+    // Turn a declaration into CSS text
     private void generateDeclaration(Declaration decl, StringBuilder builder) {
-        builder.append("  ");
+        builder.append("  "); // indent 2 spaces
         builder.append(decl.property.name);
         builder.append(": ");
         builder.append(literalToString((Literal) decl.expression));
-        builder.append(";\n");
+        builder.append(";\n"); // end with semicolon
     }
 
+    // Convert a literal to string, so we can print it in CSS
     private String literalToString(Literal literal) {
         if (literal instanceof PixelLiteral) return ((PixelLiteral) literal).value + "px";
         if (literal instanceof PercentageLiteral) return ((PercentageLiteral) literal).value + "%";

@@ -27,3 +27,26 @@ p {
 
     width: WidthVar;
 }
+
+
+WidthVar := 50px;
+Scale := 2;
+
+
+Extra test:
+
+p {
+    height: WidthVar;
+    width: WidthVar * Scale;
+    if [TRUE] {
+        color: #ff0000;
+        WidthVar := 100px;
+    } else {
+        color: #00ff00;
+    }
+}
+
+div {
+    margin: 10% + 5%;
+    padding: 3 * 4px;
+}
